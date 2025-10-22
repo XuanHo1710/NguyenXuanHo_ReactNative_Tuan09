@@ -1,19 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import {
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import {
-  SQLiteProvider,
-  useSQLiteContext,
-  type SQLiteDatabase,
-} from 'expo-sqlite';
 
 /**
  * The Item type represents a single item in database.
@@ -73,48 +66,6 @@ function Item({
   );
 }
 
-//#endregion
-
-//#region Database Operations
-
-async function addItemAsync(db: SQLiteDatabase, text: string): Promise<void> {
-  if (text !== '') {
-    await db.runAsync(
-      'INSERT INTO items (done, value) VALUES (?, ?);',
-      false,
-      text
-    );
-  }
-}
-
-async function updateItemAsDoneAsync(
-  db: SQLiteDatabase,
-  id: number
-): Promise<void> {
-  await db.runAsync('UPDATE items SET done = ? WHERE id = ?;', true, id);
-}
-
-async function deleteItemAsync(db: SQLiteDatabase, id: number): Promise<void> {
-  await db.runAsync('DELETE FROM items WHERE id = ?;', id);
-}
-
-async function migrateDbIfNeeded(db: SQLiteDatabase) {
-  const DATABASE_VERSION = 1;
-  const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
-  const currentDbVersion = result?.user_version ?? 0;
-  if (currentDbVersion >= DATABASE_VERSION) {
-    return;
-  }
-  if (currentDbVersion === 0) {
-    await db.execAsync(`
-PRAGMA journal_mode = 'wal';
-CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY NOT NULL, done INT, value TEXT);
-`);
-  }
-  await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
-}
-
-//#endregion
 
 //#region Styles
 

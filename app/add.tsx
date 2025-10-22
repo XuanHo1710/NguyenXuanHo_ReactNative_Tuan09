@@ -39,8 +39,13 @@ function AddJob() {
         style={addStyles.finishBtn}
         onPress={async () => {
           if (value.trim()) {
-            await db.runAsync('INSERT INTO items (done, value) VALUES (?, ?);', false, value);
-            router.replace('/home');
+            try {
+              await db.runAsync('INSERT INTO items (done, value) VALUES (?, ?);', false, value);
+              router.replace('/home');
+            } catch (err) {
+              // Nếu DB bị đóng, mở lại hoặc báo lỗi rõ ràng
+              alert('Database error! Please restart the app or check DB connection.');
+            }
           }
         }}
       >
