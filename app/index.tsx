@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'expo-router';
 import {
   ScrollView,
   StyleSheet,
@@ -7,12 +8,12 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   SQLiteProvider,
   useSQLiteContext,
   type SQLiteDatabase,
 } from 'expo-sqlite';
-
 
 /**
  * The Item type represents a single item in database.
@@ -23,94 +24,32 @@ interface ItemEntity {
   value: string;
 }
 
-
 export default function Index() {
-  return (
-    <SQLiteProvider databaseName="db.db" onInit={migrateDbIfNeeded}>
-      <Main />
-    </SQLiteProvider>
-  );
-}
-
-
-
-function Main() {
-  const db = useSQLiteContext();
-  const [text, setText] = useState('');
-  const [todoItems, setTodoItems] = useState<ItemEntity[]>([]);
-  const [doneItems, setDoneItems] = useState<ItemEntity[]>([]);
-
-  const refetchItems = useCallback(() => {
-    async function refetch() {
-      await db.withExclusiveTransactionAsync(async () => {
-        setTodoItems(
-          await db.getAllAsync<ItemEntity>(
-            'SELECT * FROM items WHERE done = ?',
-            false
-          )
-        );
-        setDoneItems(
-          await db.getAllAsync<ItemEntity>(
-            'SELECT * FROM items WHERE done = ?',
-            true
-          )
-        );
-      });
-    }
-    refetch();
-  }, [db]);
-
-  useEffect(() => {
-    refetchItems();
-  }, []);
+  const [name, setName] = useState('');
+  const router = useRouter();
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>SQLite Example</Text>
-
-      <View style={styles.flexRow}>
-        <TextInput
-          onChangeText={(text) => setText(text)}
-          onSubmitEditing={async () => {
-            await addItemAsync(db, text);
-            await refetchItems();
-            setText('');
-          }}
-          placeholder="what do you need to do?"
-          style={styles.input}
-          value={text}
-        />
-      </View>
-
-      <ScrollView style={styles.listArea}>
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeading}>Todo</Text>
-          {todoItems.map((item) => (
-            <Item
-              key={item.id}
-              item={item}
-              onPressItem={async (id) => {
-                await updateItemAsDoneAsync(db, id);
-                await refetchItems();
-              }}
-            />
-          ))}
-        </View>
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionHeading}>Completed</Text>
-          {doneItems.map((item) => (
-            <Item
-              key={item.id}
-              item={item}
-              onPressItem={async (id) => {
-                await deleteItemAsync(db, id);
-                await refetchItems();
-              }}
-            />
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+    <SafeAreaView style={[styles.container, { justifyContent: 'center', backgroundColor: '#f6f8fa' }]}>  
+      <Text style={{ fontSize: 28, color: '#7B61FF', fontWeight: 'bold', textAlign: 'center', marginBottom: 32, letterSpacing: 1 }}>
+        MANAGE YOUR TASK
+      </Text>
+      <TextInput
+        placeholder="Enter your name"
+        value={name}
+        onChangeText={setName}
+        style={{ borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 12, padding: 16, marginBottom: 32, backgroundColor: '#fff', fontSize: 16 }}
+      />
+      <TouchableOpacity
+        style={{ backgroundColor: '#00C2FF', borderRadius: 12, padding: 18, alignItems: 'center', shadowColor: '#00C2FF', shadowOpacity: 0.15, shadowRadius: 8, elevation: 2 }}
+        onPress={() => {
+          if (name.trim()) {
+            router.replace({ pathname: '/home', params: { name } });
+          }
+        }}
+      >
+        <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 18, letterSpacing: 1 }}>GET STARTED →</Text>
+      </TouchableOpacity>
+    </SafeAreaView>
   );
 }
 
@@ -119,7 +58,7 @@ function Item({
   onPressItem,
 }: {
   item: ItemEntity;
-  onPressItem: (id) => void | Promise<void>;
+  onPressItem: (id: number) => void | Promise<void>;
 }) {
   const { id, done, value } = item;
   return (
@@ -161,9 +100,8 @@ async function deleteItemAsync(db: SQLiteDatabase, id: number): Promise<void> {
 
 async function migrateDbIfNeeded(db: SQLiteDatabase) {
   const DATABASE_VERSION = 1;
-  let { user_version: currentDbVersion } = await db.getFirstAsync<{
-    user_version: number;
-  }>('PRAGMA user_version');
+  const result = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
+  const currentDbVersion = result?.user_version ?? 0;
   if (currentDbVersion >= DATABASE_VERSION) {
     return;
   }
@@ -172,11 +110,7 @@ async function migrateDbIfNeeded(db: SQLiteDatabase) {
 PRAGMA journal_mode = 'wal';
 CREATE TABLE IF NOT EXISTS items (id INTEGER PRIMARY KEY NOT NULL, done INT, value TEXT);
 `);
-    currentDbVersion = 1;
   }
-  // if (currentDbVersion === 1) {
-  //   Add more migrations
-  // }
   await db.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
 }
 
@@ -189,6 +123,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     flex: 1,
     paddingTop: 64,
+    paddingHorizontal: 24,
   },
   heading: {
     fontSize: 20,
